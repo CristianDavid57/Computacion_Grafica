@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Plantilla Base</title>
+    <style>
+      html, body { margin: 0; padding: 0; overflow: hidden; }
+    </style>
+  </head>
+  <body>
+    <script src="js/three.js"></script>
+	<script src="js/controls/OrbitControls.js"></script>
+	<script src="js/csg.js"></script>
+	<script src="js/THREE.CSG.js"></script>
+    <script>
+		var scene, aspect, camera, renderer, controls;
+		init();
+		animate();
+		function init(){
+			//INICIALIZACIÓN
+	        scene = new THREE.Scene();
+	        aspect = window.innerWidth / window.innerHeight;
+	        camera = new THREE.PerspectiveCamera( 75, aspect, 0.1, 1000);
+	        renderer = new THREE.WebGLRenderer();
+	        renderer.setSize( window.innerWidth, window.innerHeight );
+	        document.body.appendChild( renderer.domElement );
+			controls = new THREE.OrbitControls( camera, renderer.domElement );
+			
+			//ELEMENTOS COMUNES
+			var size = 10;
+			var arrowSize = 1;
+			var divisions = size;
+			var origin = new THREE.Vector3( 0, 0, 0 );
+			var x = new THREE.Vector3( 1, 0, 0 );
+			var y = new THREE.Vector3( 0, 1, 0 );
+		  	var z = new THREE.Vector3( 0, 0, 1 );
+		  	var color = new THREE.Color( 0x333333 );
+		  	var colorR = new THREE.Color( 0xAA3333 );
+		  	var colorG = new THREE.Color( 0x33AA33 );
+		  	var colorB = new THREE.Color( 0x333366 );
+			
+		  	//CREAR LAS GRILLAS PARA EL ESCENARIO
+		  	var axesHelper = new THREE.AxesHelper( size );
+			scene.add( axesHelper );
+			
+		  	var gridHelperXZ = new THREE.GridHelper( size, divisions, color, color );
+			//scene.add( gridHelperXZ );
+            
+            //ROTARLAS PARA QUE QUEDEN EN EL ESPACIO ADECUADO
+            gridHelperXZ.rotateOnWorldAxis ( y, THREE.Math.degToRad(90) );
+
+            //CREAR ILUMINACIÓN
+            var ambient = new THREE.AmbientLight( 0xffffff, 2 );
+            scene.add( ambient );
+			
+            var pointLight = new THREE.PointLight( 0xffffff, 1, 100 );
+            pointLight.position.set( -5, 1, 5 );
+            scene.add( pointLight );
+			
+            var pointLight = new THREE.PointLight( 0xffffff, .5, 100 );
+            pointLight.position.set( 5, 1, -5 );
+            scene.add( pointLight );
+			
+			//CREAR LAS GEOMETRÍAS
+			var boxGeometry = new THREE.BoxGeometry( 15, 4, 20 );
+			var boxGeometry2 = new THREE.BoxGeometry(4,1.3,10);			
+			var CilindroVoz= new THREE.CylinderGeometry(3,3,4,20);
+			var CylinderGeometry = new THREE.CylinderGeometry(1,1,0.5,15);
+			var CylinderGeometry2 = new THREE.CylinderGeometry(1,1,0.5,15);
+			var CylinderGeometry3 = new THREE.CylinderGeometry(1,1,0.5,15);
+			boxGeometry.translate(-3,-1.78,0);
+			CilindroVoz.rotateX(-0.3*Math.PI).translate(-7,4.5,-3);
+			var CilindroVoz2 = CilindroVoz.clone();
+			CilindroVoz2.translate(0,-6,10).rotateX(-0.06*Math.PI);
+			var CilindroVoz3 = CilindroVoz.clone();
+			var CilindroVoz4 = CilindroVoz2.clone();
+			
+			CylinderGeometry.translate(-3,.5,.5).rotateX(5*Math.PI/36);
+			CylinderGeometry2.translate(0,0.5,0.5).rotateX(5*Math.PI/36);
+			CylinderGeometry3.translate(3,0.5,0.5).rotateX(5*Math.PI/36);
+			var CylinderGeometry4 = CylinderGeometry.clone();
+			var CylinderGeometry5 = CylinderGeometry2.clone();
+			var CylinderGeometry6 = CylinderGeometry3.clone();
+			var CylinderGeometry7 = CylinderGeometry4.clone();
+			var CylinderGeometry8 = CylinderGeometry5.clone();
+			var CylinderGeometry9 = CylinderGeometry6.clone();
+			CylinderGeometry4.translate(0,-1.4,3);
+			CylinderGeometry5.translate(0,-1.4,3);
+			CylinderGeometry6.translate(0,-1.4,3);
+			CylinderGeometry7.translate(0,-2.8,6);
+			CylinderGeometry8.translate(0,-2.8,6);
+			CylinderGeometry9.translate(0,-2.8,6);
+			boxGeometry2.translate(-7,5,0).rotateX(5*Math.PI/36);
+
+			var curve3D = [];
+			var h=0.0;
+			r=6;
+			for (var int=0;int<=60;int++){
+				h+=0.1;
+				var x=Math.cos((2*int*Math.PI)/20),z=Math.sin((2*int*Math.PI)/20);
+				curve3D.push( new THREE.Vector3(x,z,h));
+			}
+			var shape = new THREE.Shape();
+			shape.splineThru(curve3D);
+			var random = new THREE.CatmullRomCurve3(curve3D);
+            
+            var material = new THREE.LineBasicMaterial( { color : 0xff0000 } );
+            var resolution = 50;
+            var points = shape.getPoints( resolution );
+			var Puntos= new THREE.BufferGeometry().setFromPoints(points);
+			var curveObj = new THREE.Line(Puntos,material);
+			var extrudeSettings = {
+					steps: 100, depth:3,
+					bevelEnabled: true,
+					extrudePath: random
+				};
+			
+			
+			//CREAR LOS MATERIALES
+            var material1 = new THREE.MeshStandardMaterial( { color: colorB, metalness: 0.5, roughness: 0.1 } );
+			var material2 = new THREE.MeshStandardMaterial( { color: 0xffffff, metalness: 0.5, roughness: 0.1 , transparent: true, opacity:0.4 } );
+			var material3 = new THREE.MeshStandardMaterial({color: 0x736E66, metalness:0.5,roughness:0.1});
+			var geometryExt = new THREE.ExtrudeGeometry( shape, extrudeSettings );
+			
+			var cable = new THREE.Mesh(geometryExt,material3);
+			cable.position.set(-7,-0.1,9);
+			cable.rotateX(5*Math.PI/36);
+
+			
+			
+			//CREAR LAS MALLAS
+			var cube = new THREE.Mesh( boxGeometry, material1 );
+			var voz = new THREE.Mesh(CilindroVoz, material1);
+			var voz2 = new THREE.Mesh(CilindroVoz2, material1);
+			var vocina1= new THREE.Mesh(CilindroVoz3, material3);
+			var vocina2 = new THREE.Mesh(CilindroVoz4, material3);
+			var tele = new THREE.Mesh(boxGeometry2, material3);
+			cube.rotateX(5*Math.PI/36);
+			var tecla1 = new THREE.Mesh( CylinderGeometry, material2 );
+			var tecla2 = new THREE.Mesh(CylinderGeometry2,material2);
+			var tecla3 = new THREE.Mesh(CylinderGeometry3,material2);
+			var tecla4 = new THREE.Mesh(CylinderGeometry4,material2);
+			var tecla5 = new THREE.Mesh(CylinderGeometry5,material2);
+			var tecla6 = new THREE.Mesh(CylinderGeometry6,material2);
+			var tecla7 = new THREE.Mesh(CylinderGeometry7,material2);
+			var tecla8 = new THREE.Mesh(CylinderGeometry8,material2);
+			var tecla9 = new THREE.Mesh(CylinderGeometry9,material2);
+			//CONVERTIR A CSG
+			var boxCSG = THREE.CSG.fromMesh( cube );
+			var vozCSG = THREE.CSG.fromMesh(voz);
+			var vozCSG2 = THREE.CSG.fromMesh(voz2);
+			var vocinaCSG1 = THREE.CSG.fromMesh(vocina1);
+			var vocinaCSG2 = THREE.CSG.fromMesh(vocina2);
+			var CYLCSG = THREE.CSG.fromMesh( tecla1 );
+			var CYLCSG2 = THREE.CSG.fromMesh(tecla2);
+			var CYLCSG3 = THREE.CSG.fromMesh(tecla3);
+			var CYLCSG4 = THREE.CSG.fromMesh(tecla4);
+			var CYLCSG5 = THREE.CSG.fromMesh(tecla5);
+			var CYLCSG6 = THREE.CSG.fromMesh(tecla6);			
+			var CYLCSG7 = THREE.CSG.fromMesh(tecla7);
+			var CYLCSG8 = THREE.CSG.fromMesh(tecla8);
+			var CYLCSG9 = THREE.CSG.fromMesh(tecla9);
+			//APLICAR LAS OPERACIONES
+			var result1 = CYLCSG.union( CYLCSG2 );
+			var result2= result1.union(CYLCSG3);
+			var result3 = result2.union(CYLCSG4);
+			var result4 = result3.union(CYLCSG5);
+			var result5 = result4.union(CYLCSG6);
+			var result6 = result5.union(CYLCSG7);
+			var result7 = result6.union(CYLCSG8);
+			var result = result7.union(CYLCSG9);
+
+			var res1 = boxCSG.subtract(vozCSG);
+			var res = res1.subtract(vozCSG2);
+
+			var telefono1 = vocinaCSG1.union(vocinaCSG2);
+			//CONVERTIR A THREE
+			tecla1 = THREE.CSG.toMesh( result );
+			tecla1.material = material2;
+			cube = THREE.CSG.toMesh(res);
+			cube.material= material1;
+			vocina1= THREE.CSG.toMesh(telefono1);
+			vocina1.material= material3;
+			
+			//AGREGAR A LA ESCENA LOS DIFERENTES ELEMENTOS
+			scene.add(cube);
+			scene.add( tecla1 );
+			scene.add(vocina1);
+			scene.add(tele);
+			scene.add(cable);
+			//scene.add( curveObj );
+			//scene.add( sphere );		//ACTIVE PARA VISUALIZAR LA ESFERA
+
+			camera.position.x = 2;
+			camera.position.y = 2;
+		  	camera.position.z = 5;
+			camera.lookAt( origin );
+		}
+		function animate(){
+			requestAnimationFrame( animate );
+			controls.update();
+			render();
+		}
+		function render(){
+			renderer.render( scene, camera );
+		}
+    </script>
+  </body>
+</html>
