@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="es">
+	<head>
+		<title>Among Us</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<link type="text/css" rel="stylesheet" >
+	</head>
+<body>
+    
+    <script src="js/three.min.js"></script>
+	<script src="js/controls/OrbitControls.js"></script>
+    <script src="js/csg.js"></script>
+	<script src="js/THREE.CSG.js"></script>
+	<script type="text/javascript" src="js/dat.gui.js"></script>
+	<div style="position: relative;" id="opts"></div>
+	<script >
+		var controlsBox={ Personaje:'#000000', MOD:'A',ColorCubo:'#000000',Metalico :0.1,Rugosidad:0.1};
+		var gui = new dat.GUI();
+		
+		gui.addColor(controlsBox, 'Personaje','value' );
+		
+		gui.addColor(controlsBox, 'ColorCubo','value');
+		gui.add(controlsBox,'Metalico',0,1 ).step(0.01);
+		gui.add(controlsBox, 'Rugosidad',0,1).step(0.01);
+		gui.add(controlsBox, 'MOD',{Metal1: 'A', Metal2: 'B', Metal3: 'C' } );
+		var customContainer = document.getElementById('opts');
+		customContainer.appendChild(gui.domElement);
+		
+	</script>
+    <script type="module">
+	var scene, aspect, camera, renderer, controls;
+	var startTime = Date.now();
+	var x1=0,y1=0,z1=0;
+	var PiernaDer, PiernaIzq, Cuerpo,numcam=3,Vidrio, luzPersonaje;
+	var thetaSum=0,positivo=false;
+	var upArrow = false,downArrow = false, leftArrow = false, rightArrow = false, Arrow1=false, Arrow2= false, Arrow3=false;
+	var rollOverGeo,rollOverMesh, rollOverMaterial;
+	var cubeGeo, cubeMaterial,objects = [];
+	var mouse, raycaster,plane, isShiftDown = false;
+	var x = new THREE.Vector3( 1, 0, 0 );
+	var y = new THREE.Vector3( 0, 1, 0 );
+	var z = new THREE.Vector3( 0, 0, 1 );
+	
+	init();
+	animate();
+	function init(){
+		//INICIALIZACIÓN
+        scene = new THREE.Scene();
+        scene.background= new THREE.Color(0xf0f0f0);
+		aspect = window.innerWidth / window.innerHeight;
+		
+		var size = 100;
+		var arrowSize = 1;
+		var divisions = size;
+		var origin = new THREE.Vector3( 0, 0, 0 );
+		var color = new THREE.Color( 0x333333 );
+		
+		//CREAR LAS GRILLAS PARA EL ESCENARIO
+		var axesHelper = new THREE.AxesHelper( size );
+		scene.add( axesHelper );
+        var gridHelperXZ = new THREE.GridHelper( size, divisions, color, color );
+        scene.add( gridHelperXZ );
+      	//ROTARLAS PARA QUE QUEDEN EN EL ESPACIO ADECUADO
+        gridHelperXZ.rotateOnWorldAxis ( y, THREE.Math.degToRad(90) );
+      	//CREAR ILUMINACIÓN
+        var pointLight = new THREE.PointLight( 0xffffff, 1, 100 );
+        pointLight.position.set( -5, 10, 5 );
+        scene.add( pointLight );
+        var pointLight = new THREE.PointLight( 0xffffff, .5, 100 );
+        pointLight.position.set( 5, 10, -5 );
+		scene.add( pointLight );
+		//Nevesario Para Voxels
+		cubeGeo = new THREE.BoxBufferGeometry( 1, 1, 1 );
+		cubeMaterial=new THREE.MeshStandardMaterial( { color: 0x7F7E78,metalness:0.6 , roughness: 0.1} );
+		rollOverGeo = new THREE.BoxBufferGeometry( 1, 1, 1 );
+		rollOverMaterial = new THREE.MeshBasicMaterial( { color: controlsBox.ColorCubo, opacity: 0.5, transparent: true } );
+		rollOverMesh = new THREE.Mesh( rollOverGeo, rollOverMaterial );
+		raycaster = new THREE.Raycaster();
+		mouse = new THREE.Vector2();
+		//CREA TRIPULANTE
+		Tripulante();
+		var poszw=5,posxw=-10,posyw=0,hwall=10,deg=0,wwall=20;
+		Muro(posxw,posyw,poszw,wwall,hwall,deg);
+		Muro(10,0,5,10,10,-45);
+		Muro(-17,0,-2,10,10,45);
+		Muro(-17,0,-6,5,10,90);
+		Muro(-22,0,-6,5,10,0);
+		Muro(-27,0,0,7,10,-45);
+		Muro(-28,0,0,6,10,225);
+		Muro(-33,0,-5,6,10,270);
+		Muro(-32,0,-10,9,10,-45);
+		Muro(-26,0,-16,5,10,0);
+		Muro(-21,0,-16,5,10,45);
+		Muro(-20,0,-14,6,10,0);
+		Muro(-14,0,-14,15,10,-15);
+		Muro(0,0,-18,20,10,30);
+		Muro(16,0,-8,6,10,90);
+		AñadirVoxel();
+		}
+	function Tripulante(){
+		//TECLAS
+		var onKeyDown = function ( event ) {
+				switch ( event.keyCode ) {
+					case 87: // TRASLADAR ADELANTE
+						upArrow = true;
+						break;
+					case 83: // TRASLADAR ATRÁS
+						downArrow = true;
+						break;
+					case 68: // ROTAR CW
+						leftArrow = true;
+						break;
+					case 65: // ROTAR CCW
+						rightArrow = true;
+						break;
+					case 49:
+						Arrow1=true;
+						break;
+					case 50:
+						Arrow2=true;
+						break;
+					case 51:
+						Arrow3=true;
+						break;
+				}
+			};
+		var onKeyUp = function ( event ) {
+			switch ( event.keyCode ) {
+				case 87: // TRASLADAR
+					upArrow = false;
+					break;
+				case 83: // TRASLADAR
+					downArrow = false;
+					break;
+				case 68: // ROTAR CW
+					leftArrow = false;
+					break;
+				case 65: // ROTAR CCW
+					rightArrow = false;
+					break;
+				case 49:
+					Arrow1=false;
+					break;
+				case 50:
+					Arrow2=false;
+					break;
+				case 51:
+					Arrow3=false;
+					break;
+
+			}
+		};
+		document.addEventListener( 'keydown', onKeyDown, false );
+		document.addEventListener( 'keyup', onKeyUp, false );
+		luzPersonaje = new THREE.PointLight(0xffffff,0.5,50);
+		luzPersonaje.position.set(0,5,0);
+		var SphereOp = new THREE.SphereGeometry(1,20,20);
+		var BoxBody = new THREE.CylinderGeometry(1,1,2,20);
+		var BoxBox = new THREE.BoxBufferGeometry(1.3,1.3,0.5);
+		var CylGlass= new THREE.CylinderGeometry(0.8,0.8,0.5,20);
+		var CyPierna1= new THREE.CylinderGeometry(0.4,0.4,1.5,20);
+		var CyPierna2= new THREE.CylinderGeometry(0.4,0.4,1.5,20);
+		SphereOp.translate(0,1,0);
+		BoxBox.translate(0,0,-1.2);
+		CylGlass.translate(0,1,0.3);
+		CyPierna1.translate(-0.6,-1,0);
+		CyPierna2.translate(0.6,-1,0);
+		var material1 = new THREE.MeshStandardMaterial({ color: controlsBox.Personaje, metalness: 0.5, roughness: 0.1 } );
+		var material2 = new THREE.MeshStandardMaterial({color: 0x616566, metalness: 0.6, roughness: 0.5})
+		Cuerpo = new THREE.Mesh(BoxBody,material1);
+		var Casco= new THREE.Mesh(SphereOp, material1);
+		var Maleta = new THREE.Mesh(BoxBox, material1);
+		Vidrio = new THREE.Mesh(CylGlass,material2);
+		PiernaDer= new THREE.Mesh(CyPierna1,material1);
+		PiernaIzq = new THREE.Mesh(CyPierna2,material1);
+		var CCcasco = THREE.CSG.fromMesh(Casco);
+		var CCcuerpo= THREE.CSG.fromMesh(Cuerpo);
+		var CCMaleta = THREE.CSG.fromMesh(Maleta);
+		var Personaje1 = CCcasco.union(CCcuerpo);
+		var Personaje= Personaje1.union(CCMaleta);
+		Cuerpo= THREE.CSG.toMesh(Personaje);
+		Cuerpo.material=material1;
+		Cuerpo.add(Vidrio);
+		Cuerpo.add(PiernaDer);
+		Cuerpo.add(PiernaIzq);
+		Cuerpo.applyMatrix(new THREE.Matrix4().makeTranslation(0,1.7,0));
+		Cuerpo.add(luzPersonaje);		
+		
+		Camaras(numcam);
+	
+		scene.add(Cuerpo);
+	}
+	function AñadirVoxel() {
+		
+		var geometry = new THREE.PlaneBufferGeometry( 100, 100 );
+		geometry.rotateX( - Math.PI / 2 );
+
+		plane = new THREE.Mesh( geometry, new THREE.MeshBasicMaterial( { color: 0x7F7E78,visible: true } ) );
+		scene.add( plane );
+
+		objects.push( plane );
+		document.addEventListener( 'mousemove', onDocumentMouseMove, false );
+		document.addEventListener( 'mousedown', onDocumentMouseDown, false );
+		document.addEventListener( 'keydown', onDocumentKeyDown, false );
+		document.addEventListener( 'keyup', onDocumentKeyUp, false );
+
+				//
+
+		window.addEventListener( 'resize', onWindowResize, false );
+
+	}
+
+	function onWindowResize() {
+		camera.aspect = window.innerWidth / window.innerHeight;
+		camera.updateProjectionMatrix();
+		renderer.setSize( window.innerWidth, window.innerHeight );
+	}
+	function onDocumentMouseMove( event ) {
+
+	event.preventDefault();
+
+	mouse.set( ( event.clientX / window.innerWidth ) * 2 - 1, - ( event.clientY / window.innerHeight ) * 1.8 + 1);
+
+	raycaster.setFromCamera( mouse, camera );
+
+	var intersects = raycaster.intersectObjects( objects );
+	var intersect = intersects[ 0 ];
+	if ( intersects.length > 0){
+		rollOverMesh.visible=true;
+		scene.add( rollOverMesh );					
+		rollOverMesh.position.copy( intersect.point ).add( intersect.face.normal );
+		rollOverMesh.position.divideScalar( 1 ).floor().multiplyScalar( 1 ).addScalar( 0.5 );
+	}
+	render();
+	}
+	function onDocumentMouseDown( event ) {
+
+	event.preventDefault();
+	mouse.set( ( event.clientX / window.innerWidth ) * 2 - 1, - ( event.clientY / window.innerHeight ) * 1.8 + 1 );
+	
+	raycaster.setFromCamera( mouse, camera );
+
+	var intersects = raycaster.intersectObjects( objects );
+
+	if ( intersects.length > 0 ) {
+	var intersect = intersects[ 0 ];
+	// delete cube
+	if ( isShiftDown ) {
+		if ( intersect.object !== plane ) {
+			scene.remove( intersect.object );
+			objects.splice( objects.indexOf( intersect.object ), 1 );
+		}
+	} 
+		else{
+		var voxel=new THREE.Mesh(cubeGeo,cubeMaterial);
+		voxel.position.copy( intersect.point ).add( intersect.face.normal );
+		voxel.position.divideScalar( 1).floor().multiplyScalar( 1 ).addScalar(0.5 );
+		scene.add(voxel );
+		objects.push(voxel);
+		}
+		render();
+		}
+	}
+	function onDocumentKeyDown( event ) {
+		switch ( event.keyCode ) {
+			case 16: isShiftDown = true; break;
+		}
+	}
+	function onDocumentKeyUp( event ) {
+		switch ( event.keyCode ) {
+			case 16: isShiftDown = false; break;
+		}
+	}
+				
+	
+	function Muro(posxw,posyw,poszw,wwall,hwall,deg){
+		var naveMaterial1 = new THREE.MeshStandardMaterial({color: 0x587B80,roughness:0.5,metalness:1})
+		for(var i=0;i<hwall;i++){			
+			for(var j=0;j<wwall;j++){	
+				var voxelWall = new THREE.Mesh(cubeGeo, naveMaterial1);
+				var grado=deg*Math.PI/180;		
+				voxelWall.position.x=posxw+(j*Math.cos(grado));
+				voxelWall.position.y=i;
+				voxelWall.position.z=poszw+(j*Math.sin(grado));
+				voxelWall.position.divideScalar( 1).floor().multiplyScalar( 1 ).addScalar(0.5 );
+				scene.add(voxelWall);
+				objects.push(voxelWall);
+			}
+		}
+	}
+ 	
+	function Camaras(numcam){		
+	var numcam=numcam;
+	Cuerpo.remove(camera);
+	Vidrio.remove(camera);
+		if(numcam == 1){
+			camera = new THREE.PerspectiveCamera( 45, aspect, 1, 10000);
+			renderer = new THREE.WebGLRenderer();
+			renderer.setSize( window.innerWidth, window.innerHeight );
+			document.body.appendChild( renderer.domElement );			
+        	camera.position.x = 0,camera.position.y = 8,camera.position.z =-12;
+			scene.add(camera);
+			Cuerpo.add(camera);
+		}
+		else if (numcam == 2) {
+			camera = new THREE.PerspectiveCamera( 45, aspect, 1, 10000);
+			renderer = new THREE.WebGLRenderer();
+			renderer.setSize( window.innerWidth, window.innerHeight );
+			document.body.appendChild( renderer.domElement );
+			camera.position.x = 0,camera.position.y = 8,camera.position.z =12;
+			//camera.rotateY(Math.PI/4);
+			scene.add(camera);
+			Cuerpo.add(camera);	
+		}
+		else if(numcam == 3){
+			camera = new THREE.PerspectiveCamera( 45, aspect, 1, 10000);
+			renderer = new THREE.WebGLRenderer();
+			renderer.setSize( window.innerWidth, window.innerHeight );
+			document.body.appendChild( renderer.domElement );
+			camera.position.x = 0,camera.position.y = 0,camera.position.z =-0.1;
+			scene.add(camera);
+			Vidrio.add(camera);	
+			camera.lookAt(0,3,7);
+		}
+		controls = new THREE.OrbitControls(camera,renderer.domElement);	
+ 	}
+	function animate(){
+		requestAnimationFrame( animate );
+		controls.update();
+		render();
+      
+	}
+	function render(){
+		
+		var dtime = Date.now()-startTime;
+		renderer.render( scene, camera );		
+		var tx=0, ty=0, tz=0;	//Variables para traslacion
+		var sc = 1;				//Variable para escala
+		var theta=0;			//Variable para ángulo de rotacion de piernas
+		var sigma=0;			//Variable para ángulo de rotación de caderas
+		if(thetaSum>=55*Math.PI/180)
+			positivo = false;
+		if(thetaSum<=-55*Math.PI/180)
+			positivo = true;		
+		if(upArrow) {
+			tx=0; ty=0; tz=.1;
+		if(positivo)
+				theta = .1;
+		else
+			theta = -.1;
+		}
+		if(downArrow) {
+			tx=0; ty=0; tz=-.1;
+		if(positivo)
+				theta = .1;
+		else
+				theta = -.1;
+		}
+		thetaSum+=theta;
+		
+		if(leftArrow)
+			sigma = -.05;
+		if(rightArrow)
+			sigma = .05;
+		
+		//MATRIZ DE TRASLACIÓN
+		var t = new THREE.Matrix4();
+		t.set( 	1, 0, 0, tx,
+				0, 1, 0, ty, 
+				0, 0, 1, tz,
+				0, 0, 0, 1	);
+		Cuerpo.matrix.multiply(t);
+		var ct1 = Math.cos(theta);
+		var ct2 = Math.cos(-theta);
+		var cs = Math.cos(sigma);
+		var st1 = Math.sin(theta);
+		var st2 = Math.sin(-theta);
+		var ss = Math.sin(sigma);
+		var r = new THREE.Matrix4();
+		var r1 = new THREE.Matrix4();
+		var r2 = new THREE.Matrix4();
+		r.set( 	   cs,  0, ss, 0,
+					0,  1,  0, 0, 
+				  -ss,  0, cs, 0,
+					0,  0,  0, 1 );	
+		//MATRICES DE ROTACIÓN EN EJE LOCAL DE PIERNAS	
+		r1.set( 	1,  0,  0, 0,
+					0, ct1,-st1, 0, 
+					0, st1, ct1, 0,
+					0,  0,  0, 1 );	
+		r2.set( 	1,  0,  0, 0,
+					0, ct2,-st2, 0, 
+					0, st2, ct2, 0,
+					0,  0,  0, 1 );							
+		
+		//ROTACION EN UN EJE PARALELO
+		var tempMatrix = new THREE.Matrix4();
+		tempMatrix.copyPosition( Cuerpo.matrix );
+		Cuerpo.applyMatrix( new THREE.Matrix4().getInverse(tempMatrix) );
+		Cuerpo.applyMatrix(r);
+		Cuerpo.applyMatrix( tempMatrix );
+		PiernaDer.applyMatrix(r1);
+		PiernaIzq.applyMatrix(r2);
+		var material3 = new THREE.MeshStandardMaterial({color:controlsBox.Personaje,metalness: 0.5, roughness: 0.1 } );
+		Cuerpo.material=material3;
+		PiernaIzq.material=material3;
+		PiernaDer.material=material3;
+		rollOverMaterial=new THREE.MeshBasicMaterial( { color: controlsBox.ColorCubo, opacity: 0.5, transparent: true } );
+		cubeMaterial=new THREE.MeshStandardMaterial( { color: controlsBox.ColorCubo ,metalness:controlsBox.Metalico , roughness: controlsBox.Rugosidad} );
+		if(Arrow1){scene.remove(camera);Camaras(1);}
+		if(Arrow2){scene.remove(camera);Camaras(2);}
+		if(Arrow3){scene.remove(camera);Camaras(3);}
+    }      
+	</script>
+	
+	<div id="info">
+        <a>Among Us hecho por Cristian</a>        
+    </div>
+</body>
+</html>
