@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Plantilla Base</title>
+    <meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <link type="text/css" rel="stylesheet" >
+    <style>
+    html, body { margin: 0; padding: 0; overflow: hidden; background: #f0f0f0;}
+     body {
+				background-color: #f0f0f0;
+				color: #444;
+			}
+			a {
+				color: #08f;
+			}
+    </style>
+  </head>
+  <body >
+    <script src="js/three.js"></script>
+	<script src="js/controls/OrbitControls.js"></script>
+	<script src="js/csg.js"></script>
+    <script src="js/THREE.CSG.js"></script>
+    
+    <script type="module">
+    var scene, aspect, camera, renderer, controls;
+    var llanta1, Contorno;
+    var LL1,LL2,LL3,LL4;
+    var mouse;
+    var IsW=false,IsS=false,IsA=false,IsD=false;
+    var x1=0,y1=0,z1=0;
+		init();
+		animate();
+		function init(){
+			//INICIALIZACIÓN
+      scene = new THREE.Scene();
+      scene.background= new THREE.Color(0x0f0f0f);
+	    aspect = window.innerWidth / window.innerHeight;
+      camera = new THREE.PerspectiveCamera( 75, aspect, 0.1, 1000);
+	    renderer = new THREE.WebGLRenderer();
+	    renderer.setSize( window.innerWidth, window.innerHeight );
+	    document.body.appendChild( renderer.domElement );
+			controls = new THREE.OrbitControls( camera, renderer.domElement );
+          
+			
+			//ELEMENTOS COMUNES
+			var size = 10;
+			var arrowSize = 1;
+			var divisions = size;
+			var origin = new THREE.Vector3( 0, 0, 0 );
+			var x = new THREE.Vector3( 1, 0, 0 );
+			var y = new THREE.Vector3( 0, 1, 0 );
+		  	var z = new THREE.Vector3( 0, 0, 1 );
+		  	var color = new THREE.Color( 0x333333 );
+		  	var colorR = new THREE.Color( 0xAA3333 );
+		  	var colorG = new THREE.Color( 0x33AA33 );
+		  	var colorB = new THREE.Color( 0x333366 );
+			
+		  	//CREAR LAS GRILLAS PARA EL ESCENARIO
+		  	var axesHelper = new THREE.AxesHelper( size );
+			scene.add( axesHelper );
+			
+		  	var gridHelperXZ = new THREE.GridHelper( size, divisions, color, color );
+      scene.add( gridHelperXZ );
+      //ROTARLAS PARA QUE QUEDEN EN EL ESPACIO ADECUADO
+      gridHelperXZ.rotateOnWorldAxis ( y, THREE.Math.degToRad(90) );
+      //CREAR ILUMINACIÓN
+      var ambient = new THREE.AmbientLight( 0xffffff, 2 );
+      scene.add( ambient );
+      var pointLight = new THREE.PointLight( 0xffffff, 1, 100 );
+      pointLight.position.set( -5, 1, 5 );
+      scene.add( pointLight );
+      var pointLight = new THREE.PointLight( 0xffffff, .5, 100 );
+      pointLight.position.set( 5, 1, -5 );
+      scene.add( pointLight );
+      var curve2D = [
+        new THREE.Vector2(1,3.7),
+        new THREE.Vector2(3.2,3.7),
+        new THREE.Vector2(4.2,2),
+        new THREE.Vector2(5,2),
+        new THREE.Vector2(5.5,1.5),
+        new THREE.Vector2(5,0.5),
+        new THREE.Vector2(4.4,0.5),
+        new THREE.Vector2(2.8,1.5), 
+        new THREE.Vector2(1.2,0.5),
+        new THREE.Vector2(-2,0.5),
+        new THREE.Vector2(-3.6,1.5),
+        new THREE.Vector2(-5.2,0.5),
+        new THREE.Vector2(-5,0.5),
+        new THREE.Vector2(-5.8,1),
+        new THREE.Vector2(-5.8,2),
+        new THREE.Vector2(-5.6,2),
+        new THREE.Vector2(-5.6,3),
+        new THREE.Vector2(-5.7,3.4),
+        new THREE.Vector2(-5.2,3.4),
+        new THREE.Vector2(-4.8,2.8),
+        new THREE.Vector2(-4,3.2),
+        new THREE.Vector2(-2,3.7),
+        new THREE.Vector2(0,3.7)
+      ];
+      var shape = new THREE.Shape();
+      shape.moveTo(0,3.7);
+      shape.splineThru(curve2D);
+      var material = new THREE.LineBasicMaterial( { color : 0xff0000 } );
+      var resolution = 10;
+      var points = shape.getPoints( resolution );
+      var geometry = new THREE.BufferGeometry().setFromPoints( points );
+            // Create the final object to add to the scene
+      var curveObject = new THREE.Line( geometry, material );
+      scene.add( curveObject );
+      var extrudeSettings = {
+        steps: 10, depth:3,
+        bevelEnabled: false,
+        amount:6
+			}; 
+      var material1 = new THREE.MeshStandardMaterial( { color: colorB, metalness: 0.5, roughness: 0.1 } );
+      var geocarro = new THREE.ExtrudeGeometry(shape,extrudeSettings);
+      var carro = new THREE.Mesh(geocarro,material1);
+		  carro.translateZ(-3);
+      scene.add(carro);
+      LL1=Llanta(3,0.3,2.5);
+      LL2=Llanta(3,0.3,-2.5);
+      LL3=Llanta(-3.7,0.3,2.5);
+      LL4=Llanta(-3.7,0.3,-2.5);
+      camera.position.x = 2;
+			camera.position.y = 2;
+		  camera.position.z = 5;
+      camera.lookAt( origin );
+      
+      document.addEventListener( 'keydown', onDocumentKeyDown, false );
+			document.addEventListener( 'keyup', onDocumentKeyPressed, false );
+    }
+    function Llanta(x1, y1,z1){ 
+			var geollanta = new THREE.CylinderGeometry(1,1,1,60);
+            var geoContorno= new THREE.CylinderGeometry(0.8,0.8,1,60);
+            var geoCentro= new THREE.CylinderGeometry(0.1,0.1,1,20);
+            var geoDetalles1= new THREE.CylinderGeometry(0.3,0.3,1,5);
+            var geoDetalles2= geoDetalles1.clone();
+            var geoDetalles3= geoDetalles1.clone();
+            var geoDetalles4= geoDetalles1.clone();
+            var geoDetalles5= geoDetalles1.clone();
+            var geolinea = new THREE.ConeGeometry(0.5,0.5,13);
+            var geolinea2=geolinea.clone();
+            geollanta.rotateX(Math.PI/2);
+            geoContorno.rotateX(Math.PI/2);
+            geoCentro.rotateX(Math.PI/2);
+            geoDetalles1.rotateX(Math.PI/2);
+            geoDetalles2.rotateX(Math.PI/2);
+            geoDetalles1.translate(0,0.5,0);
+            geoDetalles2.translate(0,0.5,0);
+            geoDetalles2.rotateZ(72*Math.PI/180);
+            geoDetalles3.rotateX(Math.PI/2);
+            geoDetalles3.translate(0,0.5,0);
+            geoDetalles3.rotateZ(144*Math.PI/180);
+            geoDetalles4.rotateX(Math.PI/2);
+            geoDetalles4.translate(0,0.5,0);
+            geoDetalles4.rotateZ(216*Math.PI/180);
+            geoDetalles5.rotateX(Math.PI/2);
+            geoDetalles5.translate(0,0.5,0);
+            geoDetalles5.rotateZ(288*Math.PI/180);   
+            geolinea.rotateY(Math.PI/2);
+            geolinea.translate(0,1.1,0);
+            geolinea2.rotateX(-Math.PI);
+            geolinea2.translate(0,-1.1,0);
+
+            var material1 = new THREE.MeshStandardMaterial({color: 0x00000});
+            var material2 = new THREE.MeshStandardMaterial({color: 0x6B6B5E,metalness: 0.5, roughness: 0.1});
+            var material3 = new THREE.MeshStandardMaterial({color:0xf2f2f2, metalness: 0.5})
+            llanta1 = new THREE.Mesh(geollanta,material1);
+            Contorno = new THREE.Mesh(geoContorno,material2);
+            var Centro= new THREE.Mesh(geoCentro, material2);
+            var Detalles1 = new THREE.Mesh(geoDetalles1,material2);
+            var Detalles2 = new THREE.Mesh(geoDetalles2,material2);
+            var Detalles3 = new THREE.Mesh(geoDetalles3,material2);
+            var Detalles4 = new THREE.Mesh(geoDetalles4,material2);
+            var Detalles5 = new THREE.Mesh(geoDetalles5,material2);
+            var linea1 = new THREE.Mesh(geolinea,material3);
+            var linea2= new THREE.Mesh(geolinea2,material3);
+
+            //CONVERTIR
+            var CYLLLANTA= THREE.CSG.fromMesh(llanta1);
+            var CYLCONTO= THREE.CSG.fromMesh(Contorno);
+            var CYLCentro = THREE.CSG.fromMesh(Centro);
+            var CYLDET1 = THREE.CSG.fromMesh(Detalles1);
+            var CYLDET2 = THREE.CSG.fromMesh(Detalles2);
+            var CYLDET3= THREE.CSG.fromMesh(Detalles3);
+            var CYLDET4= THREE.CSG.fromMesh(Detalles4);
+            var CYLDET5= THREE.CSG.fromMesh(Detalles5);
+            var LIN1= THREE.CSG.fromMesh(linea1);
+            var LIN2= THREE.CSG.fromMesh(linea2);
+
+            var result1= CYLLLANTA.subtract(CYLCONTO);
+            var result7=result1.union(LIN1);
+            var result8=result7.union(LIN2);
+            llanta1 = THREE.CSG.toMesh(result8);
+            llanta1.material=material1;
+
+            var result2 = CYLCONTO.subtract(CYLCentro);
+            var result3= result2.subtract(CYLDET1);
+            var result4= result3.subtract(CYLDET3);
+            var result5= result4.subtract(CYLDET4);
+            var result6= result5.subtract(CYLDET5);
+            var res = result6.subtract(CYLDET2);
+            Contorno= THREE.CSG.toMesh(res);
+            Contorno.material=material2;
+            llanta1.applyMatrix(new THREE.Matrix4().makeTranslation(0,0,0));
+            Contorno.applyMatrix(new THREE.Matrix4().makeTranslation(x1,y1,z1));
+            scene.add(llanta1);
+            Contorno.add(llanta1);
+            scene.add(Contorno);
+            return llanta1;
+
+    }
+    function onDocumentKeyDown(event){
+      switch ( event.keyCode ) {
+          case 87: IsW=true;break;
+          case 65: IsA=true;break;
+          case 68: isD=true;break;
+          case 83: IsS=true;break;
+				}
+    }
+    function onDocumentKeyPressed(event){
+      switch ( event.keyCode ) {
+          case 87: IsW=false;break;          
+          case 65: IsA=false;break;
+          case 68: isD=false;break;
+          case 83: IsS=false;break;
+			}
+    }
+		function animate(){
+			requestAnimationFrame( animate );
+			controls.update();
+      render();
+      
+		}
+		function render(){
+      if(IsW==true){
+      var t1;
+      var cs=Math.cos(2*Math.PI/180);
+      var ss=Math.sin(2*Math.PI/180);
+      t1 = new THREE.Matrix4();
+      t1.set( cs,ss, 0, 0,
+            -ss, cs ,0, 0,
+             0,0,1,0,
+             0.0,0,1);
+      LL1.applyMatrix(t1);
+      LL2.applyMatrix(t1);
+      LL3.applyMatrix(t1);
+      LL4.applyMatrix(t1);
+      }
+      else if(IsS==true)
+      {
+        var t2;
+      var cs=Math.cos(-2*Math.PI/180);
+      var ss=Math.sin(-2*Math.PI/180);
+      t2 = new THREE.Matrix4();
+      t2.set( cs,ss, 0, 0,
+            -ss, cs ,0, 0,
+             0,0,1,0,
+             0.0,0,1);
+      LL1.applyMatrix(t2);
+      LL2.applyMatrix(t2);
+      LL3.applyMatrix(t2);
+      LL4.applyMatrix(t2);
+      }
+      renderer.render( scene, camera );
+      
+    }
+    
+    </script>
+  </body>
+</html>
